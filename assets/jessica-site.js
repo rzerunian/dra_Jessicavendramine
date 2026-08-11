@@ -2,8 +2,10 @@
   'use strict';
 
   const SITE_CONFIG = Object.freeze({
-    whatsapp: '',
-    whatsappMessage: 'Olá, gostaria de receber informações sobre o atendimento de aconselhamento genético.'
+    email: 'contato@jessicavendramine.com.br',
+    formEndpoint: 'https://formspree.io/f/xgawkndg',
+    whatsapp: '5521996367433',
+    whatsappMessage: 'Olá, entrei no seu site e gostaria de obter mais informações sobre o atendimento.'
   });
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -145,10 +147,12 @@
     toastTimer = setTimeout(() => toast.classList.remove('visible'), 4200);
   };
 
-  $('[data-contact-form]')?.addEventListener('submit', (event) => {
+  $('[data-contact-form]')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const error = $('.form-error', form);
+    const submitButton = $('.submit-button', form);
+    const submitLabel = $('span', submitButton);
     if (!form.checkValidity()) {
       error.textContent = 'Revise os campos obrigatórios e confirme o consentimento.';
       error.classList.add('visible');
@@ -156,8 +160,28 @@
       return;
     }
     error.classList.remove('visible');
-    closeModal();
-    showToast('Formulário pronto. O envio será ativado com o canal profissional de contato.');
+    submitButton.disabled = true;
+    submitButton.setAttribute('aria-busy', 'true');
+    submitLabel.textContent = 'Enviando...';
+    try {
+      const response = await fetch(SITE_CONFIG.formEndpoint, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) throw new Error(`Formspree respondeu com status ${response.status}.`);
+      form.reset();
+      closeModal();
+      showToast('Solicitação enviada com sucesso. Retornaremos pelo contato informado.');
+    } catch (submissionError) {
+      console.error('Não foi possível enviar o formulário.', submissionError);
+      error.textContent = 'Não foi possível enviar agora. Tente novamente ou use o WhatsApp ou o e-mail profissional.';
+      error.classList.add('visible');
+    } finally {
+      submitButton.disabled = false;
+      submitButton.removeAttribute('aria-busy');
+      submitLabel.textContent = 'Solicitar contato';
+    }
   });
 
   $$('[data-whatsapp]').forEach((trigger) => trigger.addEventListener('click', (event) => {
